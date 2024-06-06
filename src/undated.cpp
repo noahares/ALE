@@ -651,7 +651,7 @@ scalar_type exODT_model::pun(approx_posterior *ale, bool verbose, bool no_T) {
             for (int i = 0; i < N_parts; i++) {
               int gp_i = gp_is[i];
               int gpp_i = gpp_is[i];
-              scalar_type pp = p_part[i] / N_parts;
+              scalar_type pp = p_part[i];
               // printf("(%d, %d):%Lf\n", gp_i, gpp_i, pp);
               if (not(e < last_leaf)) {
                 int f = daughter[e];

@@ -34,15 +34,10 @@ public:
              << "_" << e;
       addParameter_(new Parameter(deltae.str(), 1, constraint));
 
-      stringstream tau_to_e;
-      tau_to_e << "rm_tau_to"
-               << "_" << e;
-      addParameter_(new Parameter(tau_to_e.str(), 1, constraint));
-
-      stringstream tau_from_e;
-      tau_from_e << "rm_tau_from"
+      stringstream tau_e;
+      tau_e << "rm_tau"
                  << "_" << e;
-      addParameter_(new Parameter(tau_from_e.str(), 1, constraint));
+      addParameter_(new Parameter(tau_e.str(), 1, constraint));
 
       stringstream lambdae;
       lambdae << "rm_lambda"
@@ -77,17 +72,11 @@ public:
       double tmp = getParameterValue(deltae.str());
       model_pointer->model->vector_parameter["rate_multiplier_delta"][e] = tmp;
 
-      stringstream tau_to_e;
-      tau_to_e << "rm_tau_to"
-               << "_" << e;
-      tmp = getParameterValue(tau_to_e.str());
-      model_pointer->model->vector_parameter["rate_multiplier_tau_to"][e] = tmp;
-
-      stringstream tau_from_e;
-      tau_from_e << "rm_tau_from"
+      stringstream tau_e;
+      tau_e << "rm_tau"
                  << "_" << e;
-      tmp = getParameterValue(tau_from_e.str());
-      model_pointer->model->vector_parameter["rate_multiplier_tau_from"][e] =
+      tmp = getParameterValue(tau_e.str());
+      model_pointer->model->vector_parameter["rate_multiplier_tau"][e] =
           tmp;
 
       stringstream lambdae;
@@ -194,17 +183,11 @@ int main(int argc, char **argv) {
       double tmp = optimizer->getParameterValue(deltae.str());
       infer_tree->model->vector_parameter["rate_multiplier_delta"][e] = tmp;
 
-      stringstream tau_to_e;
-      tau_to_e << "rm_tau_to"
+      stringstream tau_e;
+      tau_e << "rm_tau"
                << "_" << e;
-      tmp = optimizer->getParameterValue(tau_to_e.str());
-      infer_tree->model->vector_parameter["rate_multiplier_tau_to"][e] = tmp;
-
-      stringstream tau_from_e;
-      tau_from_e << "rm_tau_from"
-                 << "_" << e;
-      tmp = optimizer->getParameterValue(tau_from_e.str());
-      infer_tree->model->vector_parameter["rate_multiplier_tau_from"][e] = tmp;
+      tmp = optimizer->getParameterValue(tau_e.str());
+      infer_tree->model->vector_parameter["rate_multiplier_tau"][e] = tmp;
 
       stringstream lambdae;
       lambdae << "rm_lambda"

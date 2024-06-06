@@ -61,13 +61,11 @@ void exODT_model::construct_undated(const string &Sstring,
       son[last_branch] = -1;
       vector_parameter["BL_rate_multiplier"].push_back(
           node->getDistanceToFather());
-      vector_parameter["rate_multiplier_tau_to"].push_back(1);
-      vector_parameter["rate_multiplier_tau_from"].push_back(1);
-      wT.push_back(1);
       rmD.push_back(1);
       rmT.push_back(1);
       rmL.push_back(1);
       vector_parameter["rate_multiplier_delta"].push_back(1);
+      vector_parameter["rate_multiplier_tau"].push_back(1);
       vector_parameter["rate_multiplier_lambda"].push_back(1);
       vector_parameter["rate_multiplier_O"].push_back(1);
     }
@@ -102,13 +100,11 @@ void exODT_model::construct_undated(const string &Sstring,
 
           vector_parameter["BL_rate_multiplier"].push_back(
               node->getDistanceToFather());
-          vector_parameter["rate_multiplier_tau_to"].push_back(1);
-          vector_parameter["rate_multiplier_tau_from"].push_back(1);
-          wT.push_back(1);
           rmD.push_back(1);
           rmT.push_back(1);
           rmL.push_back(1);
           vector_parameter["rate_multiplier_delta"].push_back(1);
+          vector_parameter["rate_multiplier_tau"].push_back(1);
           vector_parameter["rate_multiplier_lambda"].push_back(1);
           vector_parameter["rate_multiplier_O"].push_back(1);
 
@@ -143,10 +139,8 @@ void exODT_model::construct_undated(const string &Sstring,
 
   vector_parameter["BL_rate_multiplier"][last_branch] =
       scalar_parameter["root_BL"];
-  vector_parameter["rate_multiplier_tau_to"].push_back(1);
-  vector_parameter["rate_multiplier_tau_from"].push_back(1);
-  wT.push_back(1);
   vector_parameter["rate_multiplier_delta"].push_back(1);
+  vector_parameter["rate_multiplier_tau"].push_back(1);
   vector_parameter["rate_multiplier_lambda"].push_back(1);
   vector_parameter["rate_multiplier_O"].push_back(1);
 
@@ -301,30 +295,27 @@ void exODT_model::calculate_undatedEs() {
   mPTE_ancestral_correction.clear();
   PD.clear();
   tau_norm.clear();
+  PT.clear();
   PL.clear();
   PS.clear();
   // scalar_type P_T=0;
   map<string, scalar_type> rm_norms;
-  rm_norms["tau_to"] = 0;
-  rm_norms["tau_from"] = 0;
   rm_norms["delta"] = 0;
+  rm_norms["tau"] = 0;
   rm_norms["lambda"] = 0;
   rm_norms["O"] = 0;
 
   for (int e = 0; e < last_branch; e++) {
-    rm_norms["tau_to"] += vector_parameter["rate_multiplier_tau_to"][e];
-    rm_norms["tau_from"] += vector_parameter["rate_multiplier_tau_from"][e];
     rm_norms["delta"] += vector_parameter["rate_multiplier_delta"][e];
+    rm_norms["tau"] += vector_parameter["rate_multiplier_tau"][e];
     rm_norms["lambda"] += vector_parameter["rate_multiplier_lambda"][e];
     rm_norms["O"] += vector_parameter["rate_multiplier_O"][e];
   }
 
   for (int e = 0; e < last_branch; e++) {
     if (scalar_parameter["undatedBL"] == true) {
-      wT[e] = vector_parameter["rate_multiplier_tau_to"][e] *
-              vector_parameter["BL_rate_multiplier"][e];
       rmT[e] = vector_parameter["tau"][e] *
-               vector_parameter["rate_multiplier_tau_from"][e] *
+               vector_parameter["rate_multiplier_tau"][e] *
                vector_parameter["BL_rate_multiplier"][e];
       rmD[e] = vector_parameter["delta"][e] *
                vector_parameter["rate_multiplier_delta"][e] *
@@ -333,18 +324,14 @@ void exODT_model::calculate_undatedEs() {
                vector_parameter["rate_multiplier_lambda"][e] *
                vector_parameter["BL_rate_multiplier"][e];
     } else {
-      wT[e] = vector_parameter["rate_multiplier_tau_to"][e];
       rmT[e] = vector_parameter["tau"][e] *
-               vector_parameter["rate_multiplier_tau_from"][e];
+               vector_parameter["rate_multiplier_tau"][e];
       rmD[e] = vector_parameter["delta"][e] *
                vector_parameter["rate_multiplier_delta"][e];
       rmL[e] = vector_parameter["lambda"][e] *
                vector_parameter["rate_multiplier_lambda"][e];
     }
   }
-  scalar_type tau_sum = 0;
-  for (int f = 0; f < last_branch; f++)
-    tau_sum += wT[f];
 
   for (int e = 0; e < last_branch; e++) {
     // cout << e << " is " << node_name[id_nodes[e]] << endl;
@@ -359,13 +346,12 @@ void exODT_model::calculate_undatedEs() {
     P_L /= tmp;
     P_S /= tmp;
     PD.push_back(P_D);
-    tau_norm.push_back(tau_sum);
+    PT.push_back(P_T);
+    tau_norm.push_back(last_branch);
     for (vector<int>::iterator it = ancestors[e].begin();
          it != ancestors[e].end(); it++) {
-      int f = (*it);
-      tau_norm[e] -= wT[f];
+      tau_norm[e] -= 1;
     }
-    tau_norm[e] /= P_T;
 
     PL.push_back(P_L);
     PS.push_back(P_S);
@@ -399,7 +385,6 @@ void exODT_model::calculate_undatedEs() {
           int f = (*it);
           // if (ancestral[e][f]==1)
           mPTE_ancestral_correction[e] +=
-              (wT[f]) *
               uE[f]; // That's how we forbid transfers to ancestors of a branch
         }
       }
@@ -409,17 +394,19 @@ void exODT_model::calculate_undatedEs() {
       if (e < last_leaf) // we are at a leaf, there cannot be a speciation
                          // event, but the gene has been lost
       {
-        uE[e] = PL[e] + PD[e] * uE[e] * uE[e] +
-                uE[e] * (mPTE - mPTE_ancestral_correction[e]) / tau_norm[e];
+        uE[e] =
+            PL[e] + PD[e] * uE[e] * uE[e] +
+            uE[e] * PT[e] * (mPTE - mPTE_ancestral_correction[e]) / tau_norm[e];
       } else // Not at a leaf: the gene was lost once on branch e, or on all
              // descendants, including after speciation
       {
         int f = daughter[e];
         int g = son[e];
-        uE[e] = PL[e] + PS[e] * uE[f] * uE[g] + PD[e] * uE[e] * uE[e] +
-                uE[e] * (mPTE - mPTE_ancestral_correction[e]) / tau_norm[e];
+        uE[e] =
+            PL[e] + PS[e] * uE[f] * uE[g] + PD[e] * uE[e] * uE[e] +
+            uE[e] * PT[e] * (mPTE - mPTE_ancestral_correction[e]) / tau_norm[e];
       }
-      newmPTE += (wT[e]) * uE[e];
+      newmPTE += uE[e];
     }
     mPTE = newmPTE;
   } // End of the loop to compute mPTE
@@ -438,10 +425,11 @@ void exODT_model::calculate_undatedEs() {
     {
       int f = daughter[e];
       int g = son[e];
-      uE[e] = PL[e] + PS[e] * uE[f] * uE[g] + PD[e] * uE[e] * uE[e] +
-              uE[e] * (mPTE - mPTE_ancestral_correction[e]) / tau_norm[e];
+      uE[e] =
+          PL[e] + PS[e] * uE[f] * uE[g] + PD[e] * uE[e] * uE[e] +
+          uE[e] * PT[e] * (mPTE - mPTE_ancestral_correction[e]) / tau_norm[e];
     }
-    newmPTE += (wT[e]) * uE[e];
+    newmPTE += uE[e];
   }
   mPTE = newmPTE;
 }
@@ -664,6 +652,7 @@ scalar_type exODT_model::pun(approx_posterior *ale, bool verbose, bool no_T) {
             int gp_i = gp_is[i];
             int gpp_i = gpp_is[i];
             scalar_type pp = p_part[i];
+            // printf("(%d, %d):%Lf\n", gp_i, gpp_i, pp);
             if (not(e < last_leaf)) {
               int f = daughter[e];
               int g = son[e];
@@ -679,6 +668,7 @@ scalar_type exODT_model::pun(approx_posterior *ale, bool verbose, bool no_T) {
             // T event
             if (not no_T)
               uq_sum +=
+                  PT[e] *
                   (uq[gp_i][e] *
                        (mPTuq[gpp_i] - mPTuq_ancestral_correction[gpp_i][e]) /
                        tau_norm[e] +
@@ -699,13 +689,14 @@ scalar_type exODT_model::pun(approx_posterior *ale, bool verbose, bool no_T) {
         // TL event
         if (not no_T)
           uq_sum +=
+              PT[e] *
               ((mPTuq[i] - mPTuq_ancestral_correction[i][e]) / tau_norm[e] *
                    uE[e] +
                uq[i][e] * (mPTE - mPTE_ancestral_correction[e]) / tau_norm[e]);
         if (uq_sum < EPSILON)
           uq_sum = EPSILON;
         uq[i][e] = uq_sum;
-        new_mPTuq += (wT[e]) * uq_sum;
+        new_mPTuq += uq_sum;
         mPTuq_ancestral_correction[i][e] = 0;
         // for (map<int,int>::iterator it=ancestral[e].begin();
         // it!=ancestral[e].end();it++)
@@ -714,7 +705,7 @@ scalar_type exODT_model::pun(approx_posterior *ale, bool verbose, bool no_T) {
           // int f=(*it).first;
           int f = (*it);
           // if (ancestral[e][f]==1)
-          mPTuq_ancestral_correction[i][e] += (wT[f]) * uq_sum;
+          mPTuq_ancestral_correction[i][e] += uq_sum;
         }
       }
       mPTuq[i] = new_mPTuq;
@@ -905,10 +896,8 @@ string exODT_model::sample_undated(int e, int i, string last_event,
       // T event
       for (int f = 0; f < last_branch; f++)
         if (not ancestral[e][f] and not no_T) {
-          uq_sum +=
-              uq[gp_i][e] * (wT[f] / tau_norm[e]) * uq[gpp_i][f] * pp + EPSILON;
-          uq_sum +=
-              uq[gpp_i][e] * (wT[f] / tau_norm[e]) * uq[gp_i][f] * pp + EPSILON;
+          uq_sum += PT[e] * (uq[gp_i][e] / tau_norm[e]) * uq[gpp_i][f] * pp + EPSILON;
+          uq_sum += PT[e] * (uq[gpp_i][e] / tau_norm[e]) * uq[gp_i][f] * pp + EPSILON;
         }
     }
   }
@@ -926,8 +915,8 @@ string exODT_model::sample_undated(int e, int i, string last_event,
   // TL event
   for (int f = 0; f < last_branch; f++)
     if (not ancestral[e][f] and not no_T) {
-      uq_sum += (wT[f] / tau_norm[e]) * uq[i][f] * uE[e] + EPSILON;
-      uq_sum += (wT[f] / tau_norm[e]) * uE[f] * uq[i][e] + EPSILON;
+      uq_sum += PT[e] * (uq[i][f] / tau_norm[e]) * uE[e] + EPSILON;
+      uq_sum += PT[e] * (uE[f] / tau_norm[e]) * uq[i][e] + EPSILON;
     }
 
   // ######################################################################################################################
@@ -1003,8 +992,7 @@ string exODT_model::sample_undated(int e, int i, string last_event,
             fstring << extant_species[f];
           string fstr = fstring.str();
 
-          uq_resum +=
-              uq[gp_i][e] * (wT[f] / tau_norm[e]) * uq[gpp_i][f] * pp + EPSILON;
+          uq_resum += PT[e] * (uq[gp_i][e] / tau_norm[e]) * uq[gpp_i][f] * pp + EPSILON;
           if (r * uq_sum < uq_resum) {
             register_Tfrom(e);
             register_Tto(f);
@@ -1018,8 +1006,7 @@ string exODT_model::sample_undated(int e, int i, string last_event,
                    sample_undated(f, gpp_i, "T", "", no_T) + ").T@" + estr +
                    "->" + fstr + branch_string + ":" + branch_length;
           }
-          uq_resum +=
-              uq[gpp_i][e] * (wT[f] / tau_norm[e]) * uq[gp_i][f] * pp + EPSILON;
+          uq_resum += PT[e] * (uq[gpp_i][e] / tau_norm[e]) * uq[gp_i][f] * pp + EPSILON;
           if (r * uq_sum < uq_resum) {
             register_Tfrom(e);
             register_Tto(f);
@@ -1067,7 +1054,7 @@ string exODT_model::sample_undated(int e, int i, string last_event,
         fstring << extant_species[f];
       string fstr = fstring.str();
 
-      uq_resum += (wT[f] / tau_norm[e]) * uq[i][f] * uE[e] + EPSILON;
+      uq_resum += PT[e] * (uq[i][f] / tau_norm[e]) * uE[e] + EPSILON;
       if (r * uq_sum < uq_resum) {
         register_Tfrom(e);
         register_Tto(f);
@@ -1081,7 +1068,7 @@ string exODT_model::sample_undated(int e, int i, string last_event,
         return sample_undated(f, i, "T",
                               ".T@" + estr + "->" + fstr + branch_string, no_T);
       }
-      uq_resum += (wT[f] / tau_norm[e]) * uE[f] * uq[i][e] + EPSILON;
+      uq_resum += PT[e] * (uE[f] / tau_norm[e]) * uq[i][e] + EPSILON;
       if (r * uq_sum < uq_resum) {
         return sample_undated(e, i, "S", "", no_T);
       }

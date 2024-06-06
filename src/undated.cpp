@@ -644,57 +644,58 @@ scalar_type exODT_model::pun(approx_posterior *ale, bool verbose, bool no_T) {
             extant_species[e] == gid_sps[g_id]) {
           // present
           uq_sum += PS[e] * 1;
-        }
-        // G internal
-        if (not is_a_leaf) {
-          int N_parts = gp_is.size();
-          for (int i = 0; i < N_parts; i++) {
-            int gp_i = gp_is[i];
-            int gpp_i = gpp_is[i];
-            scalar_type pp = p_part[i];
-            // printf("(%d, %d):%Lf\n", gp_i, gpp_i, pp);
-            if (not(e < last_leaf)) {
-              int f = daughter[e];
-              int g = son[e];
-              // S event
-              uq_sum +=
-                  PS[e] *
-                  (uq[gp_i][f] * uq[gpp_i][g] + uq[gp_i][g] * uq[gpp_i][f]) *
-                  pp;
+        } else {
+          // G internal
+          if (not is_a_leaf) {
+            int N_parts = gp_is.size();
+            for (int i = 0; i < N_parts; i++) {
+              int gp_i = gp_is[i];
+              int gpp_i = gpp_is[i];
+              scalar_type pp = p_part[i];
+              // printf("(%d, %d):%Lf\n", gp_i, gpp_i, pp);
+              if (not(e < last_leaf)) {
+                int f = daughter[e];
+                int g = son[e];
+                // S event
+                uq_sum +=
+                    PS[e] *
+                    (uq[gp_i][f] * uq[gpp_i][g] + uq[gp_i][g] * uq[gpp_i][f]) *
+                    pp;
+              }
+              // D event
+              uq_sum += PD[e] * (uq[gp_i][e] * uq[gpp_i][e]) *
+                        pp; // no factor of two needed here
+              // T event
+              if (not no_T)
+                uq_sum +=
+                    PT[e] *
+                    (uq[gp_i][e] *
+                         (mPTuq[gpp_i] - mPTuq_ancestral_correction[gpp_i][e]) /
+                         tau_norm[e] +
+                     uq[gpp_i][e] *
+                         (mPTuq[gp_i] - mPTuq_ancestral_correction[gp_i][e]) /
+                         tau_norm[e]) *
+                    pp;
             }
-            // D event
-            uq_sum += PD[e] * (uq[gp_i][e] * uq[gpp_i][e]) *
-                      pp; // no factor of two needed here
-            // T event
-            if (not no_T)
-              uq_sum +=
-                  PT[e] *
-                  (uq[gp_i][e] *
-                       (mPTuq[gpp_i] - mPTuq_ancestral_correction[gpp_i][e]) /
-                       tau_norm[e] +
-                   uq[gpp_i][e] *
-                       (mPTuq[gp_i] - mPTuq_ancestral_correction[gp_i][e]) /
-                       tau_norm[e]) *
-                  pp;
           }
+          if (not(e < last_leaf)) {
+            int f = daughter[e];
+            int g = son[e];
+            // SL event
+            uq_sum += PS[e] * (uq[i][f] * uE[g] + uq[i][g] * uE[f]);
+          }
+          // DL event
+          uq_sum += PD[e] * (uq[i][e] * uE[e] * 2);
+          // TL event
+          if (not no_T)
+            uq_sum +=
+                PT[e] * ((mPTuq[i] - mPTuq_ancestral_correction[i][e]) /
+                             tau_norm[e] * uE[e] +
+                         uq[i][e] * (mPTE - mPTE_ancestral_correction[e]) /
+                             tau_norm[e]);
+          if (uq_sum < EPSILON)
+            uq_sum = EPSILON;
         }
-        if (not(e < last_leaf)) {
-          int f = daughter[e];
-          int g = son[e];
-          // SL event
-          uq_sum += PS[e] * (uq[i][f] * uE[g] + uq[i][g] * uE[f]);
-        }
-        // DL event
-        uq_sum += PD[e] * (uq[i][e] * uE[e] * 2);
-        // TL event
-        if (not no_T)
-          uq_sum +=
-              PT[e] *
-              ((mPTuq[i] - mPTuq_ancestral_correction[i][e]) / tau_norm[e] *
-                   uE[e] +
-               uq[i][e] * (mPTE - mPTE_ancestral_correction[e]) / tau_norm[e]);
-        if (uq_sum < EPSILON)
-          uq_sum = EPSILON;
         uq[i][e] = uq_sum;
         new_mPTuq += uq_sum;
         mPTuq_ancestral_correction[i][e] = 0;
@@ -746,6 +747,15 @@ scalar_type exODT_model::pun(approx_posterior *ale, bool verbose, bool no_T) {
     }
     // cout << root_sum/survive << endl;
   }
+  for (int e = 0; e < last_branch; e++) {
+    scalar_type O_p = vector_parameter["rate_multiplier_O"][e];
+    if (e == (last_branch - 1) and O_p == 1)
+      O_p = scalar_parameter["O_R"];
+    printf("%d: %Lf\n", e, uq[root_i][e] * O_p * last_branch);
+  }
+  printf("rootsum: %Lf\n", root_sum);
+  printf("survive: %Lf\n", survive);
+
   return root_sum * last_branch / survive;
 }
 
@@ -896,8 +906,10 @@ string exODT_model::sample_undated(int e, int i, string last_event,
       // T event
       for (int f = 0; f < last_branch; f++)
         if (not ancestral[e][f] and not no_T) {
-          uq_sum += PT[e] * (uq[gp_i][e] / tau_norm[e]) * uq[gpp_i][f] * pp + EPSILON;
-          uq_sum += PT[e] * (uq[gpp_i][e] / tau_norm[e]) * uq[gp_i][f] * pp + EPSILON;
+          uq_sum +=
+              PT[e] * (uq[gp_i][e] / tau_norm[e]) * uq[gpp_i][f] * pp + EPSILON;
+          uq_sum +=
+              PT[e] * (uq[gpp_i][e] / tau_norm[e]) * uq[gp_i][f] * pp + EPSILON;
         }
     }
   }
@@ -992,7 +1004,8 @@ string exODT_model::sample_undated(int e, int i, string last_event,
             fstring << extant_species[f];
           string fstr = fstring.str();
 
-          uq_resum += PT[e] * (uq[gp_i][e] / tau_norm[e]) * uq[gpp_i][f] * pp + EPSILON;
+          uq_resum +=
+              PT[e] * (uq[gp_i][e] / tau_norm[e]) * uq[gpp_i][f] * pp + EPSILON;
           if (r * uq_sum < uq_resum) {
             register_Tfrom(e);
             register_Tto(f);
@@ -1006,7 +1019,8 @@ string exODT_model::sample_undated(int e, int i, string last_event,
                    sample_undated(f, gpp_i, "T", "", no_T) + ").T@" + estr +
                    "->" + fstr + branch_string + ":" + branch_length;
           }
-          uq_resum += PT[e] * (uq[gpp_i][e] / tau_norm[e]) * uq[gp_i][f] * pp + EPSILON;
+          uq_resum +=
+              PT[e] * (uq[gpp_i][e] / tau_norm[e]) * uq[gp_i][f] * pp + EPSILON;
           if (r * uq_sum < uq_resum) {
             register_Tfrom(e);
             register_Tto(f);

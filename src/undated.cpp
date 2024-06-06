@@ -698,15 +698,13 @@ scalar_type exODT_model::pun(approx_posterior *ale, bool verbose, bool no_T) {
         }
         uq[i][e] = uq_sum;
         new_mPTuq += uq_sum;
+      }
+      for (int e = 0; e < last_branch; e++) {
         mPTuq_ancestral_correction[i][e] = 0;
-        // for (map<int,int>::iterator it=ancestral[e].begin();
-        // it!=ancestral[e].end();it++)
         for (vector<int>::iterator it = ancestors[e].begin();
              it != ancestors[e].end(); it++) {
-          // int f=(*it).first;
           int f = (*it);
-          // if (ancestral[e][f]==1)
-          mPTuq_ancestral_correction[i][e] += uq_sum;
+          mPTuq_ancestral_correction[i][e] += uq[i][f];
         }
       }
       mPTuq[i] = new_mPTuq;

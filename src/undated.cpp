@@ -651,7 +651,7 @@ scalar_type exODT_model::pun(approx_posterior *ale, bool verbose, bool no_T) {
             for (int i = 0; i < N_parts; i++) {
               int gp_i = gp_is[i];
               int gpp_i = gpp_is[i];
-              scalar_type pp = p_part[i];
+              scalar_type pp = p_part[i] / N_parts;
               // printf("(%d, %d):%Lf\n", gp_i, gpp_i, pp);
               if (not(e < last_leaf)) {
                 int f = daughter[e];
@@ -743,16 +743,15 @@ scalar_type exODT_model::pun(approx_posterior *ale, bool verbose, bool no_T) {
         O_p = scalar_parameter["O_R"];
       branch_counts["O_LL"].at(e) = log(uq[root_i][e]) + log(O_p);
     }
-    // cout << root_sum/survive << endl;
   }
-  for (int e = 0; e < last_branch; e++) {
-    scalar_type O_p = vector_parameter["rate_multiplier_O"][e];
-    if (e == (last_branch - 1) and O_p == 1)
-      O_p = scalar_parameter["O_R"];
-    printf("%d: %Lf\n", e, uq[root_i][e] * O_p * last_branch);
-  }
-  printf("rootsum: %Lf\n", root_sum);
-  printf("survive: %Lf\n", survive);
+  // for (int e = 0; e < last_branch; e++) {
+  //   scalar_type O_p = vector_parameter["rate_multiplier_O"][e];
+  //   if (e == (last_branch - 1) and O_p == 1)
+  //     O_p = scalar_parameter["O_R"];
+  //   printf("%d: %Lf\n", e, uq[root_i][e] * O_p * last_branch);
+  // }
+  // printf("rootsum: %Lf\n", root_sum);
+  // printf("survive: %Lf\n", survive);
 
   return root_sum * last_branch / survive;
 }

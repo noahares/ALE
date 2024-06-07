@@ -652,7 +652,8 @@ scalar_type exODT_model::pun(approx_posterior *ale, bool verbose, bool no_T) {
               int gp_i = gp_is[i];
               int gpp_i = gpp_is[i];
               scalar_type pp = p_part[i];
-              if (g_id == -1) pp /= N_parts;
+              if (g_id == -1)
+                pp /= N_parts;
               // printf("(%d, %d):%Lf\n", gp_i, gpp_i, pp);
               if (not(e < last_leaf)) {
                 int f = daughter[e];
@@ -883,52 +884,52 @@ string exODT_model::sample_undated(int e, int i, string last_event,
   if (e < last_leaf and is_a_leaf and extant_species[e] == gid_sps[g_id]) {
     // present
     uq_sum += PS[e] * 1 + EPSILON;
-  }
+  } else {
 
-  // G internal
-  if (not is_a_leaf) {
-    int N_parts = gp_is.size();
-    for (int i = 0; i < N_parts; i++) {
-      int gp_i = gp_is[i];
-      int gpp_i = gpp_is[i];
-      scalar_type pp = p_part[i];
-      if (not(e < last_leaf)) {
-        int f = daughter[e];
-        int g = son[e];
-        // S event
-        uq_sum += PS[e] * uq[gp_i][f] * uq[gpp_i][g] * pp + EPSILON;
-        uq_sum += PS[e] * uq[gp_i][g] * uq[gpp_i][f] * pp + EPSILON;
-      }
-      // D event
-      uq_sum += PD[e] * (uq[gp_i][e] * uq[gpp_i][e] * 2) * pp + EPSILON;
-      // T event
-      for (int f = 0; f < last_branch; f++)
-        if (not ancestral[e][f] and not no_T) {
-          uq_sum +=
-              PT[e] * (uq[gp_i][e] / tau_norm[e]) * uq[gpp_i][f] * pp + EPSILON;
-          uq_sum +=
-              PT[e] * (uq[gpp_i][e] / tau_norm[e]) * uq[gp_i][f] * pp + EPSILON;
+    // G internal
+    if (not is_a_leaf) {
+      int N_parts = gp_is.size();
+      for (int i = 0; i < N_parts; i++) {
+        int gp_i = gp_is[i];
+        int gpp_i = gpp_is[i];
+        scalar_type pp = p_part[i];
+        if (not(e < last_leaf)) {
+          int f = daughter[e];
+          int g = son[e];
+          // S event
+          uq_sum += PS[e] * uq[gp_i][f] * uq[gpp_i][g] * pp + EPSILON;
+          uq_sum += PS[e] * uq[gp_i][g] * uq[gpp_i][f] * pp + EPSILON;
         }
-    }
-  }
-
-  if (not(e < last_leaf)) {
-    int f = daughter[e];
-    int g = son[e];
-    // SL event
-    uq_sum += PS[e] * uq[i][f] * uE[g] + EPSILON;
-    uq_sum += PS[e] * uq[i][g] * uE[f] + EPSILON;
-  }
-
-  // DL event
-  uq_sum += PD[e] * (uq[i][e] * uE[e] * 2) + EPSILON;
-  // TL event
-  for (int f = 0; f < last_branch; f++)
-    if (not ancestral[e][f] and not no_T) {
-      uq_sum += PT[e] * (uq[i][f] / tau_norm[e]) * uE[e] + EPSILON;
-      uq_sum += PT[e] * (uE[f] / tau_norm[e]) * uq[i][e] + EPSILON;
+        // D event
+        uq_sum += PD[e] * (uq[gp_i][e] * uq[gpp_i][e] * 2) * pp + EPSILON;
+        // T event
+        for (int f = 0; f < last_branch; f++)
+          if (not ancestral[e][f] and not no_T) {
+            uq_sum += PT[e] * (uq[gp_i][e] / tau_norm[e]) * uq[gpp_i][f] * pp +
+                      EPSILON;
+            uq_sum += PT[e] * (uq[gpp_i][e] / tau_norm[e]) * uq[gp_i][f] * pp +
+                      EPSILON;
+          }
+      }
     }
 
+    if (not(e < last_leaf)) {
+      int f = daughter[e];
+      int g = son[e];
+      // SL event
+      uq_sum += PS[e] * uq[i][f] * uE[g] + EPSILON;
+      uq_sum += PS[e] * uq[i][g] * uE[f] + EPSILON;
+    }
+
+    // DL event
+    uq_sum += PD[e] * (uq[i][e] * uE[e] * 2) + EPSILON;
+    // TL event
+    for (int f = 0; f < last_branch; f++)
+      if (not ancestral[e][f] and not no_T) {
+        uq_sum += PT[e] * (uq[i][f] / tau_norm[e]) * uE[e] + EPSILON;
+        uq_sum += PT[e] * (uE[f] / tau_norm[e]) * uq[i][e] + EPSILON;
+      }
+  }
   // ######################################################################################################################
   // #########################################INNNER
   // LOOP##################################################################
@@ -956,135 +957,140 @@ string exODT_model::sample_undated(int e, int i, string last_event,
       return ale_pointer->set2name(ale_pointer->id_sets[g_id]) + branch_string +
              ":" + branch_length;
     }
-  }
-  // G internal
-  if (not is_a_leaf) {
-    int N_parts = gp_is.size();
-    for (int i = 0; i < N_parts; i++) {
-      int gp_i = gp_is[i];
-      int gpp_i = gpp_is[i];
-      scalar_type pp = p_part[i];
-      if (not(e < last_leaf)) {
-        int f = daughter[e];
-        int g = son[e];
-        // S event
-        uq_resum += PS[e] * uq[gp_i][f] * uq[gpp_i][g] * pp + EPSILON;
-        if (r * uq_sum < uq_resum) {
-          register_Su(e, last_event);
-          return "(" + sample_undated(f, gp_i, "S", "", no_T) + "," +
-                 sample_undated(g, gpp_i, "S", "", no_T) + ")." + estr +
-                 branch_string + ":" + branch_length;
-        }
-        uq_resum += PS[e] * uq[gp_i][g] * uq[gpp_i][f] * pp + EPSILON;
-        if (r * uq_sum < uq_resum) {
-          register_Su(e, last_event);
-          return "(" + sample_undated(g, gp_i, "S", "", no_T) + "," +
-                 sample_undated(f, gpp_i, "S", "", no_T) + ")." + estr +
-                 branch_string + ":" + branch_length;
-        }
-      }
-      // D event
-      uq_resum += PD[e] * (uq[gp_i][e] * uq[gpp_i][e] * 2) * pp + EPSILON;
-      if (r * uq_sum < uq_resum or no_T) {
-        register_D(e);
-        return "(" + sample_undated(e, gp_i, "D", "", no_T) + "," +
-               sample_undated(e, gpp_i, "D", "", no_T) + ").D@" + estr +
-               branch_string + ":" + branch_length;
-      }
-
-      // T event
-      for (int f = 0; f < last_branch; f++)
-        if (not ancestral[e][f] and not no_T) {
-          stringstream fstring;
-          if (not(f < last_leaf))
-            fstring << f;
-          else
-            fstring << extant_species[f];
-          string fstr = fstring.str();
-
-          uq_resum +=
-              PT[e] * (uq[gp_i][e] / tau_norm[e]) * uq[gpp_i][f] * pp + EPSILON;
+  } else {
+    // G internal
+    if (not is_a_leaf) {
+      int N_parts = gp_is.size();
+      for (int i = 0; i < N_parts; i++) {
+        int gp_i = gp_is[i];
+        int gpp_i = gpp_is[i];
+        scalar_type pp = p_part[i];
+        if (not(e < last_leaf)) {
+          int f = daughter[e];
+          int g = son[e];
+          // S event
+          uq_resum += PS[e] * uq[gp_i][f] * uq[gpp_i][g] * pp + EPSILON;
           if (r * uq_sum < uq_resum) {
-            register_Tfrom(e);
-            register_Tto(f);
-            register_T_to_from(e, f);
-            stringstream Ttoken;
-            Ttoken << estr << ">" << fstr << "|"
-                   << ale_pointer->set2name(ale_pointer->id_sets[g_ids[gpp_i]]);
-            Ttokens.push_back(Ttoken.str());
-
-            return "(" + sample_undated(e, gp_i, "S", "", no_T) + "," +
-                   sample_undated(f, gpp_i, "T", "", no_T) + ").T@" + estr +
-                   "->" + fstr + branch_string + ":" + branch_length;
+            register_Su(e, last_event);
+            return "(" + sample_undated(f, gp_i, "S", "", no_T) + "," +
+                   sample_undated(g, gpp_i, "S", "", no_T) + ")." + estr +
+                   branch_string + ":" + branch_length;
           }
-          uq_resum +=
-              PT[e] * (uq[gpp_i][e] / tau_norm[e]) * uq[gp_i][f] * pp + EPSILON;
+          uq_resum += PS[e] * uq[gp_i][g] * uq[gpp_i][f] * pp + EPSILON;
           if (r * uq_sum < uq_resum) {
-            register_Tfrom(e);
-            register_Tto(f);
-            register_T_to_from(e, f);
-            stringstream Ttoken;
-            Ttoken << estr << ">" << fstr << "|"
-                   << ale_pointer->set2name(ale_pointer->id_sets[g_ids[gp_i]]);
-            Ttokens.push_back(Ttoken.str());
-            return "(" + sample_undated(e, gpp_i, "S", "", no_T) + "," +
-                   sample_undated(f, gp_i, "T", "", no_T) + ").T@" + estr +
-                   "->" + fstr + branch_string + ":" + branch_length;
+            register_Su(e, last_event);
+            return "(" + sample_undated(g, gp_i, "S", "", no_T) + "," +
+                   sample_undated(f, gpp_i, "S", "", no_T) + ")." + estr +
+                   branch_string + ":" + branch_length;
           }
         }
-    }
-  }
-  if (not(e < last_leaf)) {
-    int f = daughter[e];
-    int g = son[e];
-    // SL event
-    uq_resum += PS[e] * uq[i][f] * uE[g] + EPSILON;
-    if (r * uq_sum < uq_resum) {
-      register_Su(e, last_event);
-      register_L(g);
-      return sample_undated(f, i, "S", "." + estr + branch_string, no_T);
-    }
-    uq_resum += PS[e] * uq[i][g] * uE[f] + EPSILON;
-    if (r * uq_sum < uq_resum) {
-      register_Su(e, last_event);
-      register_L(f);
-      return sample_undated(g, i, "S", "." + estr + branch_string, no_T);
-    }
-  }
-  // DL event
-  uq_resum += PD[e] * (uq[i][e] * uE[e] * 2) + EPSILON;
-  if (r * uq_sum < uq_resum) {
-    return sample_undated(e, i, "S", branch_string, no_T);
-  }
-  // TL event
-  for (int f = 0; f < last_branch; f++)
-    if (not ancestral[e][f] and not no_T) {
-      stringstream fstring;
-      if (not(f < last_leaf))
-        fstring << f;
-      else
-        fstring << extant_species[f];
-      string fstr = fstring.str();
+        // D event
+        uq_resum += PD[e] * (uq[gp_i][e] * uq[gpp_i][e] * 2) * pp + EPSILON;
+        if (r * uq_sum < uq_resum or no_T) {
+          register_D(e);
+          return "(" + sample_undated(e, gp_i, "D", "", no_T) + "," +
+                 sample_undated(e, gpp_i, "D", "", no_T) + ").D@" + estr +
+                 branch_string + ":" + branch_length;
+        }
 
-      uq_resum += PT[e] * (uq[i][f] / tau_norm[e]) * uE[e] + EPSILON;
-      if (r * uq_sum < uq_resum) {
-        register_Tfrom(e);
-        register_Tto(f);
-        register_T_to_from(e, f);
-        /*
-        stringstream Ttoken;
-        Ttoken<<estr<<">"<<fstr<<"|"<<ale_pointer->set2name(ale_pointer->id_sets[g_id]);
-        Ttokens.push_back(Ttoken.str());
-        */
-        register_L(e);
-        return sample_undated(f, i, "T",
-                              ".T@" + estr + "->" + fstr + branch_string, no_T);
-      }
-      uq_resum += PT[e] * (uE[f] / tau_norm[e]) * uq[i][e] + EPSILON;
-      if (r * uq_sum < uq_resum) {
-        return sample_undated(e, i, "S", "", no_T);
+        // T event
+        for (int f = 0; f < last_branch; f++)
+          if (not ancestral[e][f] and not no_T) {
+            stringstream fstring;
+            if (not(f < last_leaf))
+              fstring << f;
+            else
+              fstring << extant_species[f];
+            string fstr = fstring.str();
+
+            uq_resum +=
+                PT[e] * (uq[gp_i][e] / tau_norm[e]) * uq[gpp_i][f] * pp +
+                EPSILON;
+            if (r * uq_sum < uq_resum) {
+              register_Tfrom(e);
+              register_Tto(f);
+              register_T_to_from(e, f);
+              stringstream Ttoken;
+              Ttoken << estr << ">" << fstr << "|"
+                     << ale_pointer->set2name(
+                            ale_pointer->id_sets[g_ids[gpp_i]]);
+              Ttokens.push_back(Ttoken.str());
+
+              return "(" + sample_undated(e, gp_i, "S", "", no_T) + "," +
+                     sample_undated(f, gpp_i, "T", "", no_T) + ").T@" + estr +
+                     "->" + fstr + branch_string + ":" + branch_length;
+            }
+            uq_resum +=
+                PT[e] * (uq[gpp_i][e] / tau_norm[e]) * uq[gp_i][f] * pp +
+                EPSILON;
+            if (r * uq_sum < uq_resum) {
+              register_Tfrom(e);
+              register_Tto(f);
+              register_T_to_from(e, f);
+              stringstream Ttoken;
+              Ttoken << estr << ">" << fstr << "|"
+                     << ale_pointer->set2name(
+                            ale_pointer->id_sets[g_ids[gp_i]]);
+              Ttokens.push_back(Ttoken.str());
+              return "(" + sample_undated(e, gpp_i, "S", "", no_T) + "," +
+                     sample_undated(f, gp_i, "T", "", no_T) + ").T@" + estr +
+                     "->" + fstr + branch_string + ":" + branch_length;
+            }
+          }
       }
     }
+    if (not(e < last_leaf)) {
+      int f = daughter[e];
+      int g = son[e];
+      // SL event
+      uq_resum += PS[e] * uq[i][f] * uE[g] + EPSILON;
+      if (r * uq_sum < uq_resum) {
+        register_Su(e, last_event);
+        register_L(g);
+        return sample_undated(f, i, "S", "." + estr + branch_string, no_T);
+      }
+      uq_resum += PS[e] * uq[i][g] * uE[f] + EPSILON;
+      if (r * uq_sum < uq_resum) {
+        register_Su(e, last_event);
+        register_L(f);
+        return sample_undated(g, i, "S", "." + estr + branch_string, no_T);
+      }
+    }
+    // DL event
+    uq_resum += PD[e] * (uq[i][e] * uE[e] * 2) + EPSILON;
+    if (r * uq_sum < uq_resum) {
+      return sample_undated(e, i, "S", branch_string, no_T);
+    }
+    // TL event
+    for (int f = 0; f < last_branch; f++)
+      if (not ancestral[e][f] and not no_T) {
+        stringstream fstring;
+        if (not(f < last_leaf))
+          fstring << f;
+        else
+          fstring << extant_species[f];
+        string fstr = fstring.str();
+
+        uq_resum += PT[e] * (uq[i][f] / tau_norm[e]) * uE[e] + EPSILON;
+        if (r * uq_sum < uq_resum) {
+          register_Tfrom(e);
+          register_Tto(f);
+          register_T_to_from(e, f);
+          /*
+          stringstream Ttoken;
+          Ttoken<<estr<<">"<<fstr<<"|"<<ale_pointer->set2name(ale_pointer->id_sets[g_id]);
+          Ttokens.push_back(Ttoken.str());
+          */
+          register_L(e);
+          return sample_undated(
+              f, i, "T", ".T@" + estr + "->" + fstr + branch_string, no_T);
+        }
+        uq_resum += PT[e] * (uE[f] / tau_norm[e]) * uq[i][e] + EPSILON;
+        if (r * uq_sum < uq_resum) {
+          return sample_undated(e, i, "S", "", no_T);
+        }
+      }
+  }
   // ######################################################################################################################
   // #########################################INNNER
   // LOOP##################################################################
